@@ -189,4 +189,95 @@ describe("ZombieHelper", function () {
       expect(ownerZombies.length).to.equal(2);
     });
   });
+
+
+  describe("buyWeapon", function () {
+    it("Should allow a level 2+ zombie to buy a weapon", async function () {
+      // level up the zombie first to pass the level 2 requirement
+      const fee = ethers.parseEther("0.001");
+      await zombieOwnership.levelUp(0, { value: fee });
+
+      // buy the weapon
+      await zombieOwnership.buyWeapon(0, { value: fee });
+
+      const weaponPower = await zombieOwnership.zombieWeaponPower(0);
+      //test if the range of dmg is ok
+      expect(weaponPower).to.be.gte(5);
+      expect(weaponPower).to.be.lte(20);
+    });
+
+    it("Should revert if zombie is not at least level 2", async function () {
+      const fee = ethers.parseEther("0.001");
+      
+      // zombie 0 starts at level 1, so this should fail
+      await expect(
+        zombieOwnership.buyWeapon(0, { value: fee })
+      ).to.be.revertedWith("Zombie must be at least level 2 to hold a weapon");
+    });
+
+    it("Should revert if incorrect fee is paid", async function () {
+      const fee = ethers.parseEther("0.001");
+      await zombieOwnership.levelUp(0, { value: fee });
+
+      const wrongFee = ethers.parseEther("0.0005");
+      await expect(
+        zombieOwnership.buyWeapon(0, { value: wrongFee })
+      ).to.be.revertedWith("Must pay the exact weapon fee");
+    });
+  });
+
+  describe("fuseZombies", function () {
+    it("Should successfully fuse two zombies, combine levels, and burn originals", async function () {
+      // owner needs a second zombie. breed one using feedOnKitty.
+      const MockKitty = await ethers.getContractFactory("MockCryptoKitties");
+      const mockKittyContract = await MockKitty.deploy() as unknown as MockCryptoKitties;
+      await zombieOwnership.setKittyContractAddress(await mockKittyContract.getAddress());
+
+      await time.increase(86400); // wait for cooldown
+      await zombieOwnership.feedOnKitty(0, 1); // owner breeds zombie 0 with kitty 1
+
+      // now owner owns zombie 0 and zombie 2 (zombie 1 belongs to addr1)
+      const ownerZombiesBefore = await zombieOwnership.getZombiesByOwner(owner.address);
+      expect(ownerZombiesBefore.length).to.equal(2);
+
+      // level them up so we can test level combination
+      const fee = ethers.parseEther("0.001");
+      await zombieOwnership.levelUp(0, { value: fee }); // zombie 0 is now level 2
+      
+      await time.increase(86400); // increase time if needed for cooldowns
+      
+      // fuse zombie 0 and zombie 2
+      await zombieOwnership.fuseZombies(0, 2);
+
+      // verify burn (ownership should be the zero address)
+      const ownerOf0 = await zombieOwnership.ownerOf(0);
+      const ownerOf2 = await zombieOwnership.ownerOf(2);
+      expect(ownerOf0).to.equal(ethers.ZeroAddress);
+      expect(ownerOf2).to.equal(ethers.ZeroAddress);
+
+      // verify the new mutant zombie (id 3)
+      const mutant = await zombieOwnership.zombies(3);
+      expect(mutant.name).to.equal("Mutant");
+      
+      // zombie 0 was level 2, zombie 2 was level 1. mutant should be level 3.
+      expect(mutant.level).to.equal(3); 
+      
+      // mutant dna should end in 00
+      expect(mutant.dna % 100n).to.equal(0n);
+    });
+
+    it("Should revert if trying to fuse a zombie with itself", async function () {
+      await expect(
+        zombieOwnership.fuseZombies(0, 0)
+      ).to.be.revertedWith("Cannot fuse a zombie with itself");
+    });
+
+    it("Should revert if trying to fuse a zombie you don't own", async function () {
+      // zombie 0 belongs to owner, zombie 1 belongs to addr1
+      await expect(
+        zombieOwnership.fuseZombies(0, 1)
+      ).to.be.reverted; 
+      // note: reverts based on onlyOwnerOf modifier
+    });
+  });
 });

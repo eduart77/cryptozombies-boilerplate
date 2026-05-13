@@ -16,8 +16,28 @@ contract ZombieAttack is ZombieHelper {
     Zombie storage myZombie = zombies[_zombieId];
     require(_isReady(myZombie), "Zombie not ready to attack");
     Zombie storage enemyZombie = zombies[_targetId];
+    
     uint256 rand = randMod(100);
-    if (rand <= attackVictoryProbability) {
+
+    // attacker base + weapon
+    uint256 attackerPower = attackVictoryProbability + zombieWeaponPower[_zombieId];
+    uint256 defenderArmor = zombieArmorPower[_targetId];
+    uint256 totalProbability;
+
+    // subtract armor, but ensure a minimum 5% chance to win even against massive armor
+    if (attackerPower > defenderArmor + 5) {
+        totalProbability = attackerPower - defenderArmor;
+    } else {
+        totalProbability = 5; 
+    }
+    
+    // cap at 95% maximum win chance
+    if (totalProbability > 95) {
+        totalProbability = 95;
+    }
+    // -------------------
+
+    if (rand <= totalProbability) {
       myZombie.winCount++;
       myZombie.level++;
       enemyZombie.lossCount++;

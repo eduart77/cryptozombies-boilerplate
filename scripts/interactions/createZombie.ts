@@ -13,7 +13,7 @@ import { ZombieOwnership } from "../../typechain-types";
 
 async function main() {
   // Adresa contractului (default sau din environment variable)
-  const contractAddress = process.env.CONTRACT_ADDRESS || "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+  const contractAddress = process.env.CONTRACT_ADDRESS || "0x0165878A594ca255338adfa4d48449f69242Eb8F";
   const zombieName = process.env.ZOMBIE_NAME;
 
   if (!zombieName) {
@@ -37,21 +37,21 @@ async function main() {
   ) as unknown as ZombieOwnership;
 
   // Verifică dacă user-ul are deja un zombie
-  const balance = await contract.balanceOf(owner.address);
-  if (balance > 0n) {
-    console.log("\n⚠️  You already have", balance.toString(), "zombie(s)!");
-    console.log("Each address can only create one zombie initially.");
+  //const balance = await contract.balanceOf(owner.address);
+  //if (balance > 0n) {
+  //  console.log("\n⚠️  You already have", balance.toString(), "zombie(s)!");
+  //  console.log("Each address can only create one zombie initially.");
 
     // Afișează zombies existenți
-    const zombies = await contract.getZombiesByOwner(owner.address);
-    console.log("\nYour existing zombies:");
-    for (let i = 0; i < zombies.length; i++) {
-      const zombieId = zombies[i];
-      const zombie = await contract.zombies(zombieId);
-      console.log(`  ${i + 1}. ${zombie.name} (ID: ${zombieId}, Level: ${zombie.level}, DNA: ${zombie.dna})`);
-    }
-    return;
-  }
+  //  const zombies = await contract.getZombiesByOwner(owner.address);
+  //  console.log("\nYour existing zombies:");
+  //  for (let i = 0; i < zombies.length; i++) {
+  //    const zombieId = zombies[i];
+  //    const zombie = await contract.zombies(zombieId);
+  //    console.log(`  ${i + 1}. ${zombie.name} (ID: ${zombieId}, Level: ${zombie.level}, DNA: ${zombie.dna})`);
+  //  }
+  //  return;
+  //}
 
   // Creează zombie-ul
   console.log("\n⏳ Creating zombie...");
@@ -63,12 +63,12 @@ async function main() {
 
   // Obține detaliile zombie-ului creat
   const zombies = await contract.getZombiesByOwner(owner.address);
-  const zombieId = zombies[0];
-  const zombie = await contract.zombies(zombieId);
+  const newZombieId = zombies[zombies.length - 1];
+  const zombie = await contract.zombies(newZombieId);
 
   console.log("\n🎉 Zombie created successfully!\n");
   console.log("Zombie Details:");
-  console.log("  ID:", zombieId.toString());
+  console.log("  ID:", newZombieId.toString());
   console.log("  Name:", zombie.name);
   console.log("  DNA:", zombie.dna.toString());
   console.log("  Level:", zombie.level.toString());
